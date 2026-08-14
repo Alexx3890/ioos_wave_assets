@@ -17,106 +17,118 @@
 # We can search for datasets reporting wave data in the last 30 days. We can return the unique coordinates for each dataset so we can build a map.
 
 
+from xmlrpc import server
+
 from erddapy import ERDDAP
 import folium
 import geopandas as gpd
 import pandas as pd
 
 
-server = "http://erddap.sensors.ioos.us/erddap"
-e = ERDDAP(server=server, protocol="tabledap")
 
-import pandas as pd
+def get_sensor_map_data():
+    server = "http://erddap.sensors.ioos.us/erddap"
+    e = ERDDAP(server=server, protocol="tabledap")
 
-kw = {
-    "min_time": "now-30days",
-    "search_for": "waves"
-}
+    kw = {
+        "min_time": "now-30days",
+        "search_for": "waves"
+    }
 
-url = e.get_search_url(response="csv", **kw)
-df = pd.read_csv(url)
-dataset_ids = df["Dataset ID"]
+    url = e.get_search_url(response="csv", **kw)
+    df = pd.read_csv(url)
+    dataset_ids = df["Dataset ID"]
 
-e.variables = ["longitude", "latitude"]
-e.constraints = {
-  "time>=": "now-30days",
-  "time<": "now",
-}
-kw = {"distinct": True}
+    e.variables = ["longitude", "latitude"]
+    e.constraints = {
+    "time>=": "now-30days",
+    "time<": "now",
+    }
+    kw = {"distinct": True}
 
-df_out = pd.DataFrame()
-for dataset_id in dataset_ids:
-    e.dataset_id = dataset_id
-    try:
-      df = e.to_pandas(
-      response="csvp",
-      **kw
-    )
-      df['dataset_id'] = dataset_id
-    except:
-      print(f"{dataset_id} no valid data.")
+    df_out = pd.DataFrame()
+    for dataset_id in dataset_ids:
+        e.dataset_id = dataset_id
+        try:
+            df = e.to_pandas(
+                response="csvp",
+                **kw
+                )
+            df['dataset_id'] = dataset_id
+            df['info_url'] = e.get_info_url(response="html")
+            df["href"] = [
+                f'<a href="{url}" target="_blank">{url}</a>' for url in df["info_url"]
+                ]
+        except:
+            print(f"{dataset_id} no valid data.")
 
 
-    df_out = pd.concat([df_out, df])
+        df_out = pd.concat([df_out, df])
 
-# convert to geodataframe
+    # convert to geodataframe
 
-sensor_gdf = gpd.GeoDataFrame(
-                df_out,
-                geometry=gpd.points_from_xy(
-                    df_out['longitude (degrees_east)'], df_out['latitude (degrees_north)']
-                ),
-                crs="epsg:4326",
-            )
-
+    sensor_gdf = gpd.GeoDataFrame(
+                    df_out,
+                    geometry=gpd.points_from_xy(
+                        df_out['longitude (degrees_east)'], df_out['latitude (degrees_north)']
+                    ),
+                    crs="epsg:4326",
+                )
+    return sensor_gdf
 
 # Finally, we can make a map of the stations that have reported data in the last 30 days.
 
 # ## Get HF-Radar stations with wave info
+def get_hfradar_data():
+   
+    server = "https://hfradar.ioos.us/erddap/"
+    e = ERDDAP(server=server, protocol="tabledap")
 
-server = "https://hfradar.ioos.us/erddap/"
-e = ERDDAP(server=server, protocol="tabledap")
+    kw = {
+        "min_time": "now-30days",
+        "search_for": "Wave data"
+    }
 
-kw = {
-    "min_time": "now-30days",
-    "search_for": "Wave data"
-}
+    url = e.get_search_url(response="csv", **kw)
+    df = pd.read_csv(url)
+    dataset_ids = df["Dataset ID"]
 
-url = e.get_search_url(response="csv", **kw)
-df = pd.read_csv(url)
-dataset_ids = df["Dataset ID"]
+    e.variables = ["longitude", "latitude"]
+    e.constraints = {
+    "time>=": "now-30days",
+    "time<": "now",
+    }
+    kw = {"distinct": True}
 
-e.variables = ["longitude", "latitude"]
-e.constraints = {
-  "time>=": "now-30days",
-  "time<": "now",
-}
-kw = {"distinct": True}
-
-df_out = pd.DataFrame()
-for dataset_id in dataset_ids:
-    e.dataset_id = dataset_id
-    try:
-      df = e.to_pandas(
-      response="csvp",
-      **kw
-    )
-      df['dataset_id'] = dataset_id
-    except:
-      print(f"{dataset_id} no valid data.")
-
-
-    df_out = pd.concat([df_out, df])
-
-# convert to geodataframe
-hfr_gdf = gpd.GeoDataFrame(
-                df_out,
-                geometry=gpd.points_from_xy(
-                    df_out['longitude (degrees_east)'], df_out['latitude (degrees_north)']
-                ),
-                crs="epsg:4326",
+    df_out = pd.DataFrame()
+    for dataset_id in dataset_ids:
+        e.dataset_id = dataset_id
+        try:
+            df = e.to_pandas(
+            response="csvp",
+            **kw
             )
+            df['dataset_id'] = dataset_id
+            df['info_url'] = e.get_info_url(response="html")
+            df["href"] = [
+                f'<a href="{url}" target="_blank">{url}</a>' for url in df["info_url"]
+                ]
+        except:
+            print(f"{dataset_id} no valid data.")
 
+
+        df_out = pd.concat([df_out, df])
+
+    # convert to geodataframe
+    hfr_gdf = gpd.GeoDataFrame(
+                    df_out,
+                    geometry=gpd.points_from_xy(
+                        df_out['longitude (degrees_east)'], df_out['latitude (degrees_north)']
+                    ),
+                    crs="epsg:4326",
+                )
+
+    return hfr_gdf
 
 # ## Read in data from CY2025 Asset Inventory
 # 
@@ -124,9 +136,29 @@ hfr_gdf = gpd.GeoDataFrame(
 # 
 # Wave datasets are defined by `Waves="X"`.
 
-url = "https://erddap.ioos.us/erddap/tabledap/processed_asset_inventory.geoJson?&Year=2025&Waves=%22X%22"
-asset_inventory_gdf = gpd.read_file(url)
+def get_asset_inventory_data():
 
+    server = "https://erddap.ioos.us/erddap/"
+    e = ERDDAP(server=server, protocol="tabledap")
+
+    e.constraints = {
+    "Year=": "max(Year)",
+    "Waves=": "X",
+    }
+
+    e.dataset_id = "processed_asset_inventory"
+
+    asset_inventory_gdf = gpd.read_file(e.get_download_url(response="geoJson"))
+    asset_inventory_gdf['info_url'] = e.get_info_url(response="html")
+    asset_inventory_gdf["href"] = [
+        f'<a href="{url}" target="_blank">{url}</a>' for url in asset_inventory_gdf["info_url"]
+        ]
+    return asset_inventory_gdf
+
+
+asset_inventory_gdf = get_asset_inventory_data()
+hfr_gdf = get_hfradar_data()
+sensor_gdf = get_sensor_map_data()
 
 
 # Now make a map with those layers
@@ -165,7 +197,7 @@ folium.GeoJson(
         aliases=[""],
     ),
     popup=folium.features.GeoJsonPopup(
-        fields=["station_long_name"],
+        fields=["href"],
         aliases=[""],
     ),
     show=True,
@@ -181,7 +213,7 @@ folium.GeoJson(
         aliases=[""],
     ),
     popup=folium.features.GeoJsonPopup(
-        fields=["dataset_id"],
+        fields=["href"],
         aliases=[""],
     ),
     show=True,
@@ -197,7 +229,7 @@ folium.GeoJson(
         aliases=[""],
     ),
     popup=folium.features.GeoJsonPopup(
-        fields=["dataset_id"],
+        fields=["href"],
         aliases=[""],
     ),
     show=True,
