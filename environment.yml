@@ -1,0 +1,10 @@
+name: map-of-active-stations
+channels:
+  - conda-forge
+dependencies:
+  - python=3.12
+  - erddapy
+  - folium
+  - geopandas >=0.13.1
+platforms:
+  - linux-64
