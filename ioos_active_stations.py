@@ -60,7 +60,7 @@ def get_sensor_map_data():
                 f'<a href="{url}" target="_blank">{url}</a>' for url in df["info_url"]
                 ]
         except:
-            print(f"{dataset_id} no valid data.")
+            print(f"{dataset_id} no valid data from {server}.")
 
 
         df_out = pd.concat([df_out, df])
@@ -102,19 +102,21 @@ def get_hfradar_data():
 
     df_out = pd.DataFrame()
     for dataset_id in dataset_ids:
-        e.dataset_id = dataset_id
-        try:
-            df = e.to_pandas(
-            response="csvp",
-            **kw
-            )
-            df['dataset_id'] = dataset_id
-            df['info_url'] = e.get_info_url(response="html")
-            df["href"] = [
-                f'<a href="{url}" target="_blank">{url}</a>' for url in df["info_url"]
-                ]
-        except:
-            print(f"{dataset_id} no valid data.")
+        # skip the UPR_FRDO_hfr_wave dataset because coordinates are incorrect.
+        if dataset_id != "UPR_FRDO_hfr_wave":
+            e.dataset_id = dataset_id
+            try:
+                df = e.to_pandas(
+                response="csvp",
+                **kw
+                )
+                df['dataset_id'] = dataset_id
+                df['info_url'] = e.get_info_url(response="html")
+                df["href"] = [
+                    f'<a href="{url}" target="_blank">{url}</a>' for url in df["info_url"]
+                    ]
+            except:
+                print(f"{dataset_id} no valid data from {server}.")
 
 
         df_out = pd.concat([df_out, df])
@@ -155,11 +157,15 @@ def get_asset_inventory_data():
         ]
     return asset_inventory_gdf
 
-
-asset_inventory_gdf = get_asset_inventory_data()
-hfr_gdf = get_hfradar_data()
 sensor_gdf = get_sensor_map_data()
+hfr_gdf = get_hfradar_data()
+asset_inventory_gdf = get_asset_inventory_data()
 
+
+
+print(f"Asset Inventory Stations: {len(asset_inventory_gdf)}")
+print(f"HFRadar Stations: {len(hfr_gdf)}")
+print(f"Sensor Stations: {len(sensor_gdf)}")
 
 # Now make a map with those layers
 ## Initialize map
@@ -170,7 +176,7 @@ m = folium.Map(
 
 ## Add base Layers
 tiles = "https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Base/MapServer/tile/{z}/{y}/{x}"
-gh_repo = "https://github.com/ioos/ioos_code_lab"
+gh_repo = "https://github.com/MathewBiddle/ioos_wave_assets"
 attr = f'Tiles &copy; Esri &mdash; Sources: GEBCO, NOAA, CHS, OSU, UNH, CSUMB, National Geographic, DeLorme, NAVTEQ, and Esri | <a href="{gh_repo}" target="_blank">{gh_repo}</a>'
 folium.raster_layers.TileLayer(
     name="Ocean",
