@@ -48,19 +48,20 @@ def get_sensor_map_data():
 
     df_out = pd.DataFrame()
     for dataset_id in dataset_ids:
-        e.dataset_id = dataset_id
-        try:
-            df = e.to_pandas(
-                response="csvp",
-                **kw
-                )
-            df['dataset_id'] = dataset_id
-            df['info_url'] = e.get_info_url(response="html")
-            df["href"] = [
-                f'<a href="{url}" target="_blank">{url}</a>' for url in df["info_url"]
-                ]
-        except:
-            print(f"{dataset_id} no valid data from {server}.")
+        if not dataset_id.contains('glider'):
+            e.dataset_id = dataset_id
+            try:
+                df = e.to_pandas(
+                    response="csvp",
+                    **kw
+                    )
+                df['dataset_id'] = dataset_id
+                df['info_url'] = e.get_info_url(response="html")
+                df["href"] = [
+                    f'<a href="{url}" target="_blank">{url}</a>' for url in df["info_url"]
+                    ]
+            except:
+                print(f"{dataset_id} no valid data from {server}.")
 
 
         df_out = pd.concat([df_out, df])
@@ -158,14 +159,18 @@ def get_asset_inventory_data():
     return asset_inventory_gdf
 
 sensor_gdf = get_sensor_map_data()
+cdip_gdf = sensor_gdf[sensor_gdf["dataset_id"].str.contains("cdip")]
+ndbc_gdf = sensor_gdf[sensor_gdf["dataset_id"].str.contains("ndbc")]
+sensor_gdf = sensor_gdf[(~sensor_gdf["dataset_id"].str.contains("ndbc") & ~sensor_gdf["dataset_id"].str.contains("cdip") & ~sensor_gdf["dataset_id"].str.contains("glider"))]
+
 hfr_gdf = get_hfradar_data()
 asset_inventory_gdf = get_asset_inventory_data()
 
-
-
 print(f"Asset Inventory Stations: {len(asset_inventory_gdf)}")
 print(f"HFRadar Stations: {len(hfr_gdf)}")
-print(f"Sensor Stations: {len(sensor_gdf)}")
+print(f"RA Stations: {len(sensor_gdf)}")
+print(f"NDBC Stations: {len(ndbc_gdf)}")
+print(f"CDIP Stations: {len(cdip_gdf)}")
 
 # Now make a map with those layers
 ## Initialize map
@@ -212,8 +217,40 @@ folium.GeoJson(
 # Add sensor map to map
 folium.GeoJson(
     data=sensor_gdf,
-    name="Sensor Map",#.format(name),
+    name="RA Stations",#.format(name),
     marker=folium.CircleMarker(radius=5, color="red"),
+    tooltip=folium.features.GeoJsonTooltip(
+        fields=["dataset_id"],
+        aliases=[""],
+    ),
+    popup=folium.features.GeoJsonPopup(
+        fields=["href"],
+        aliases=[""],
+    ),
+    show=True,
+).add_to(m)
+
+# Add sensor map to map
+folium.GeoJson(
+    data=cdip_gdf,
+    name="CDIP Stations",#.format(name),
+    marker=folium.CircleMarker(radius=5, color="orange"),
+    tooltip=folium.features.GeoJsonTooltip(
+        fields=["dataset_id"],
+        aliases=[""],
+    ),
+    popup=folium.features.GeoJsonPopup(
+        fields=["href"],
+        aliases=[""],
+    ),
+    show=True,
+).add_to(m)
+
+# Add sensor map to map
+folium.GeoJson(
+    data=ndbc_gdf,
+    name="NDBC Stations",#.format(name),
+    marker=folium.CircleMarker(radius=5, color="purple"),
     tooltip=folium.features.GeoJsonTooltip(
         fields=["dataset_id"],
         aliases=[""],
