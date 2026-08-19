@@ -48,7 +48,7 @@ def get_sensor_map_data():
 
     df_out = pd.DataFrame()
     for dataset_id in dataset_ids:
-        if not dataset_id.contains('glider'):
+        if not dataset_id.str.contains('glider'):
             e.dataset_id = dataset_id
             try:
                 df = e.to_pandas(
