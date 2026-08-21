@@ -65,7 +65,7 @@ def get_sensor_map_data(std_names):
 
         url = e.get_search_url(response="csv", **kw)
         df_dsets = pd.read_csv(url)
-        time.sleep(1)
+        #time.sleep(1)
         df_dsets_out = pd.concat([df_dsets_out, df_dsets])
 
 
