@@ -125,8 +125,9 @@ def get_ndbc_data(std_names):
 
     server = "http://erddap.sensors.ioos.us/erddap"
     e = ERDDAP(server=server, protocol="tabledap")
-
-    search_for = 'ndbc -"cdip" -"ism-cencoos" -"ism-secoora" -"ism-aoos" -"ism-glos"'
+    #wmo is ndbc - see https://erddap.sensors.ioos.us/erddap/info/wmo_46072/index.html
+    # maybe remove CORMP from NDBC returns https://erddap.sensors.ioos.us/erddap/search/advanced.html?page=1&itemsPerPage=1000&searchFor=ndbc+-%22cdip%22+-%22ism-secoora%22+-%22ism-cencoos%22+-%22ism-aoos%22+-%22ism-glos%22+%22CORMP%22&protocol=%28ANY%29&cdm_data_type=%28ANY%29&institution=%28ANY%29&ioos_category=%28ANY%29&keywords=%28ANY%29&long_name=%28ANY%29&standard_name=sea_surface_wave_significant_height&variableName=%28ANY%29&maxLat=&minLon=&maxLon=&minLat=&minTime=now-30days&maxTime=now
+    search_for = 'ndbc -"cdip" -"ism-cencoos" -"ism-secoora" -"ism-aoos" -"ism-glos" -"edu_fit_sipf1" -"41070-pncwave-ponce-de-leon-inle"'
 
     df_dsets_out = pd.DataFrame()
     for std_name in std_names["id"].tolist():
