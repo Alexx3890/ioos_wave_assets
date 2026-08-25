@@ -281,25 +281,24 @@ def get_hfradar_data():
     hfr_gdf = gpd.GeoDataFrame()
     for dataset_id in dataset_ids:
 
-        if dataset_id != "UPR_FRDO_hfr_wave":
-            e.dataset_id = dataset_id
-            try:
-                url = e.get_download_url(response="geoJson",
-                    **kw
-                    )
-                
-                gdf = gpd.read_file(urlopen(url))
-                gdf = gdf.explode(ignore_index=False)
-                #time.sleep(1)
+        e.dataset_id = dataset_id
+        try:
+            url = e.get_download_url(response="geoJson",
+                **kw
+                )
+            
+            gdf = gpd.read_file(urlopen(url))
+            gdf = gdf.explode(ignore_index=False)
+            #time.sleep(1)
 
-                gdf['dataset_id'] = dataset_id
-                gdf['info_url'] = e.get_info_url(response="html")
-                gdf["href"] = [
-                    f'<a href="{url}" target="_blank">{url}</a>' for url in gdf["info_url"]
-                    ]
-            except:
-                print(f"{dataset_id} no valid data from {server}.")
-                gdf = gpd.GeoDataFrame()
+            gdf['dataset_id'] = dataset_id
+            gdf['info_url'] = e.get_info_url(response="html")
+            gdf["href"] = [
+                f'<a href="{url}" target="_blank">{url}</a>' for url in gdf["info_url"]
+                ]
+        except:
+            print(f"{dataset_id} no valid data from {server}.")
+            gdf = gpd.GeoDataFrame()
 
 
         hfr_gdf = pd.concat([hfr_gdf, gdf])
