@@ -45,6 +45,7 @@ def get_cf_std_name():
 
     sensor_map_std_names = pd.read_csv('https://erddap.sensors.ioos.us/erddap/categorize/standard_name/index.csv')
 
+    # filter to only standard names that are in the sensor map erddap
     refine_ctd_names = sensor_map_std_names.merge(std_names, left_on='Category', right_on='id')
 
     print(f"Number of appropriate CF Standard Names in Sensor Map: {len(refine_ctd_names)}")
@@ -57,6 +58,7 @@ def get_cdip_stations(std_names):
     server = "http://erddap.sensors.ioos.us/erddap"
     e = ERDDAP(server=server, protocol="tabledap")
 
+    # we know ism datasets are duplicates of cdip datasets.
     search_for = 'cdip -"ism-cencoos" -"ism-secoora" -"ism-caricoos" -"ism-gcoos" -"ism-aoos" -"ism-glos-obs_264"'
 
     df_dsets_out = pd.DataFrame()
@@ -74,7 +76,7 @@ def get_cdip_stations(std_names):
             df_dsets = pd.read_csv(urlopen(url))
 
         except:
-            print(f"No datasets found for {std_name}.")
+            print(f"No CDIP datasets found for {std_name}.")
             df_dsets = pd.DataFrame()
 
         df_dsets_out = pd.concat([df_dsets_out, df_dsets])
@@ -100,9 +102,8 @@ def get_cdip_stations(std_names):
                 )
             
             gdf = gpd.read_file(urlopen(url))
-            # convert multipoints to points
+
             gdf = gdf.explode(ignore_index=False)
-            #time.sleep(1)
 
             gdf['dataset_id'] = dataset_id
             gdf['info_url'] = e.get_info_url(response="html")
@@ -124,9 +125,8 @@ def get_ndbc_stations(std_names):
 
     server = "http://erddap.sensors.ioos.us/erddap"
     e = ERDDAP(server=server, protocol="tabledap")
-    ## START HERE
-    #wmo is ndbc - see https://erddap.sensors.ioos.us/erddap/info/wmo_46072/index.html
-    # maybe remove CORMP from NDBC returns https://erddap.sensors.ioos.us/erddap/search/advanced.html?page=1&itemsPerPage=1000&searchFor=ndbc+-%22cdip%22+-%22ism-secoora%22+-%22ism-cencoos%22+-%22ism-aoos%22+-%22ism-glos%22+%22CORMP%22&protocol=%28ANY%29&cdm_data_type=%28ANY%29&institution=%28ANY%29&ioos_category=%28ANY%29&keywords=%28ANY%29&long_name=%28ANY%29&standard_name=sea_surface_wave_significant_height&variableName=%28ANY%29&maxLat=&minLon=&maxLon=&minLat=&minTime=now-30days&maxTime=now
+
+    # we know ism datasets are duplicates of ndbc datasets.
     search_for = 'ndbc -"cdip" -"ism-cencoos" -"ism-secoora" -"ism-aoos" -"ism-glos" -"edu_fit_sipf1"'
 
     df_dsets_out = pd.DataFrame()
@@ -140,9 +140,9 @@ def get_ndbc_stations(std_names):
         url = e.get_search_url(response="csv", **kw)
         try:
             df_dsets = pd.read_csv(urlopen(url))
-        #time.sleep(1)
+
         except:
-            print(f"No datasets found for {std_name}.")
+            print(f"No NDBC datasets found for {std_name}.")
             df_dsets = pd.DataFrame()
 
         df_dsets_out = pd.concat([df_dsets_out, df_dsets])
@@ -162,18 +162,14 @@ def get_ndbc_stations(std_names):
 
         e.dataset_id = dataset_id
         try:
-            # df = e.to_pandas(
-            #     response="csvp",
-            #     **kw
-            #     )
+
             url = e.get_download_url(response="geoJson",
                 **kw
                 )
             
             gdf = gpd.read_file(urlopen(url))
-            # convert multipoints to points
+            # convert multipoints (erddap geoJson response returns) to points
             gdf = gdf.explode(ignore_index=False)
-            #time.sleep(1)
 
             gdf['dataset_id'] = dataset_id
             gdf['info_url'] = e.get_info_url(response="html")
@@ -196,7 +192,8 @@ def get_ra_stations(std_names):
     server = "http://erddap.sensors.ioos.us/erddap"
     e = ERDDAP(server=server, protocol="tabledap")
 
-    # glider has incorrect cf standard name for su variable. Ignore
+    # gathering all relevant stations not affiliated with ndbc or cdip.
+    # ignore one glider with incorrect cf standard name for su variable.
     search_for = '-"ndbc" -"cdip" -"ioos-gliderdac-SG276-20260630T1502"'
 
     df_dsets_out = pd.DataFrame()
@@ -210,9 +207,9 @@ def get_ra_stations(std_names):
         url = e.get_search_url(response="csv", **kw)
         try:
             df_dsets = pd.read_csv(urlopen(url))
-        #time.sleep(1)
+
         except:
-            print(f"No datasets found for {std_name}.")
+            print(f"No RA datasets found for {std_name}.")
             df_dsets = pd.DataFrame()
 
         df_dsets_out = pd.concat([df_dsets_out, df_dsets])
@@ -233,10 +230,7 @@ def get_ra_stations(std_names):
 
         e.dataset_id = dataset_id
         try:
-            # df = e.to_pandas(
-            #     response="csvp",
-            #     **kw
-            #     )
+
             url = e.get_download_url(response="geoJson",
                 **kw
                 )
@@ -267,9 +261,10 @@ def get_hfradar_data():
     server = "https://hfradar.ioos.us/erddap/"
     e = ERDDAP(server=server, protocol="tabledap")
 
+    # skip the UPR_FRDO_hfr_wave dataset because coordinates are incorrect.
     kw = {
         "min_time": "now-30days",
-        "search_for": "Wave data"
+        "search_for": '"Wave data" -"UPR_FRDO_hfr_wave"',
     }
 
     url = e.get_search_url(response="csv", **kw)
@@ -285,7 +280,7 @@ def get_hfradar_data():
 
     hfr_gdf = gpd.GeoDataFrame()
     for dataset_id in dataset_ids:
-        # skip the UPR_FRDO_hfr_wave dataset because coordinates are incorrect.
+
         if dataset_id != "UPR_FRDO_hfr_wave":
             e.dataset_id = dataset_id
             try:
@@ -296,7 +291,7 @@ def get_hfradar_data():
                 gdf = gpd.read_file(urlopen(url))
                 gdf = gdf.explode(ignore_index=False)
                 #time.sleep(1)
-                gdf.set_crs(epsg=4326, inplace=True)
+
                 gdf['dataset_id'] = dataset_id
                 gdf['info_url'] = e.get_info_url(response="html")
                 gdf["href"] = [
@@ -304,9 +299,11 @@ def get_hfradar_data():
                     ]
             except:
                 print(f"{dataset_id} no valid data from {server}.")
+                gdf = gpd.GeoDataFrame()
 
 
         hfr_gdf = pd.concat([hfr_gdf, gdf])
+        hfr_gdf.set_crs(epsg=4326, inplace=True)
 
     return hfr_gdf
 
@@ -330,7 +327,6 @@ def get_asset_inventory_data():
     url = e.get_download_url(response="geoJson")
     asset_inventory_gdf = gpd.read_file(urlopen(url))
     asset_inventory_gdf.set_crs(epsg=4326, inplace=True)
-    #asset_inventory_gdf = gpd.read_file(e.get_download_url(response="geoJson"))
     asset_inventory_gdf['info_url'] = e.get_info_url(response="html")
     asset_inventory_gdf["href"] = [
         f'<a href="{url}" target="_blank">{url}</a>' for url in asset_inventory_gdf["info_url"]
@@ -342,10 +338,20 @@ def get_asset_inventory_data():
 std_names = get_cf_std_name()
 
 ra_gdf = get_ra_stations(std_names)
+ra_gdf['label'] = "RA"
 
 cdip_gdf = get_cdip_stations(std_names)
+cdip_gdf['label'] = "CDIP"
 
 ndbc_gdf = get_ndbc_stations(std_names)#sensor_gdf[sensor_gdf["dataset_id"].str.contains("ndbc")]
+ndbc_gdf['label'] = "NDBC"
+
+## Let's do some cleaning of duplicates
+gdf_ra_ndbc = pd.concat([ra_gdf, ndbc_gdf])
+gdf_ra_ndbc_dups = gdf_ra_ndbc[gdf_ra_ndbc.duplicated(subset='geometry',keep=False)]
+ra_ids2remove = gdf_ra_ndbc_dups.loc[gdf_ra_ndbc_dups['dataset_id'].str.contains('ism-glos')|
+                                     gdf_ra_ndbc_dups['dataset_id'].str.contains('ism-aoos')]
+ra_gdf = ra_gdf[~ra_gdf['dataset_id'].isin(ra_ids2remove['dataset_id'])]
 
 # ra_sensor_gdf = sensor_gdf[
 #     (~sensor_gdf["dataset_id"].str.contains("ndbc") & 
@@ -357,7 +363,6 @@ ndbc_gdf = get_ndbc_stations(std_names)#sensor_gdf[sensor_gdf["dataset_id"].str.
 print(f"RA Stations: {len(ra_gdf)}")
 print(f"NDBC Stations: {len(ndbc_gdf)}")
 print(f"CDIP Stations: {len(cdip_gdf)}")
-
 
 hfr_gdf = get_hfradar_data()
 print(f"HFRadar Stations: {len(hfr_gdf)}")
@@ -394,7 +399,7 @@ folium.raster_layers.TileLayer(
 # Add asset inventory to map
 folium.GeoJson(
     data=asset_inventory_gdf,
-    name=f"Asset Inventory: {len(asset_inventory_gdf)}",#.format(name),
+    name=f"&#128994;Asset Inventory: {len(asset_inventory_gdf)}",#.format(name),
     marker=folium.CircleMarker(radius=1, color="green"),
     tooltip=folium.features.GeoJsonTooltip(
         fields=["station_long_name"],
@@ -410,7 +415,7 @@ folium.GeoJson(
 # Add sensor map to map
 folium.GeoJson(
     data=ra_gdf,
-    name=f"RA Stations: {len(ra_gdf)}",#.format(name),
+    name=f"&#128308;RA Stations: {len(ra_gdf)}",#.format(name),
     marker=folium.CircleMarker(radius=5, color="red"),
     tooltip=folium.features.GeoJsonTooltip(
         fields=["dataset_id"],
@@ -426,7 +431,7 @@ folium.GeoJson(
 # Add sensor map to map
 folium.GeoJson(
     data=cdip_gdf,
-    name=f"CDIP Stations: {len(cdip_gdf)}",#.format(name),
+    name=f"&#128992;CDIP Stations: {len(cdip_gdf)}",#.format(name),
     marker=folium.CircleMarker(radius=5, color="orange"),
     tooltip=folium.features.GeoJsonTooltip(
         fields=["dataset_id"],
@@ -442,7 +447,7 @@ folium.GeoJson(
 # Add sensor map to map
 folium.GeoJson(
     data=ndbc_gdf,
-    name=f"NDBC Stations: {len(ndbc_gdf)}",#.format(name),
+    name=f"&#128995;NDBC Stations: {len(ndbc_gdf)}",#.format(name),
     marker=folium.CircleMarker(radius=5, color="purple"),
     tooltip=folium.features.GeoJsonTooltip(
         fields=["dataset_id"],
@@ -458,7 +463,7 @@ folium.GeoJson(
 # Add hfr stations to map
 folium.GeoJson(
     data=hfr_gdf,
-    name=f"HFR: {len(hfr_gdf)}",#.format(name),
+    name=f"&#128309;HFR: {len(hfr_gdf)}",#.format(name),
     marker=folium.CircleMarker(radius=5, color="blue"),
     tooltip=folium.features.GeoJsonTooltip(
         fields=["dataset_id"],
